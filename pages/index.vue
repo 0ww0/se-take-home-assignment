@@ -4,28 +4,37 @@
         completedOrders: [],
         bots: [],
         botCount: 0,
+        botNum: 0,
+        orderNum: 0,
         processingOrder: false,
     });
 
     const addOrder = (type) => {
+        state.orderNum++;
         const order = {
-            orderNumber: state.orders.length + 1,
+            orderNumber: state.orderNum,
             type,
             time: 10,
             botId: null,
             status: "Pending",
         };
-        state.orders.push(order);
         if (type === "VIP") {
-            state.orders.sort((a, b) => (a.type === "VIP" ? -1 : 1));
+            let vipIndex = state.orders.findIndex((o) => o.type !== "VIP");
+            if (vipIndex === -1) vipIndex = state.orders.length;
+            state.orders.splice(vipIndex, 0, order);
+        } else {
+            state.orders.push(order);
         }
-        processOrders();
     };
 
     const addBot = () => {
-        state.bots.push({ id: state.bots.length + 1, status: "Idle" });
+        state.botNum++;
+        const bot = { 
+            id: state.botNum, 
+            status: "Idle" 
+        }
+        state.bots.push(bot);
         state.botCount++;
-        processOrders();
     };
 
     const removeBot = () => {
@@ -49,27 +58,52 @@
         }
     };
 
-    const processOrders = () => {
+    watchEffect(() => {
         if (state.processingOrder) return;
-            const availableBots = state.bots.filter((bot) => bot.status === "Idle");
-            state.orders
-                .filter((order) => order.botId === null)
-                .forEach((order) => {
-                const availableBot = availableBots.find(
-                    (bot) =>
+        const ordersToProcess = state.orders.filter((order) => order.botId === null);
+        const availableBots = state.bots.filter((bot) => bot.status === "Idle");
+        for (const order of ordersToProcess) {
+            const availableBot = availableBots.find(
+                (bot) =>
                     !state.orders.some(
                         (o) =>
-                        o.botId === bot.id && o.status === "Pending" && o.orderNumber !== order.orderNumber
+                            o.botId === bot.id &&
+                            o.status === "Pending" &&
+                            o.orderNumber !== order.orderNumber
                     )
-                );
-                if (availableBot) {
-                    order.botId = availableBot.id;
-                    availableBot.status = "In Use";
-                    state.processingOrder = true;
-                    startProcessingOrder(order.botId, order);
-                }
-        });
-    };
+            );
+            if (!availableBot) continue; 
+            const previouslyAssignedBot = state.bots.find(
+                (bot) => bot.id === order.botId && bot.status === "Idle"
+            );
+            if (previouslyAssignedBot) availableBot = previouslyAssignedBot;
+            order.botId = availableBot.id;
+            availableBot.status = "In Use";
+            state.processingOrder = true; 
+            startProcessingOrder(order.botId, order);
+            break; 
+        }
+    });
+
+    // watchEffect(() => {
+    //     const idleBots = state.bots.filter(bot => bot.status === "Idle");
+    //     const ordersToProcess = state.orders.filter(order => order.botId === null);
+        
+    //     ordersToProcess.forEach(order => {
+    //         const availableBot = idleBots.find(bot => {
+    //         const assignedOrders = 
+    //             state.orders.filter(o => o.botId === bot.id && o.status === "Pending" &&  o.orderNumber !== order.orderNumber);
+    //             return assignedOrders.length === 0;
+    //         });
+            
+    //         if (!availableBot) return;
+            
+    //         order.botId = availableBot.id;
+    //         availableBot.status = "In Use";
+    //         state.processingOrder = true; 
+    //         startProcessingOrder(order.botId, order);
+    //     });
+    // });
 
     const startProcessingOrder = (botId, order) => {
         order.interval = setInterval(() => {
@@ -83,7 +117,6 @@
                 state.completedOrders.push(order);
                 state.orders = state.orders.filter((o) => o.status === "Pending");
                 state.processingOrder = false;
-                processOrders();
             }
         }, 1000);
     };
