@@ -1,44 +1,66 @@
 <script setup>
     const state = reactive({
         orders: [],
+        orderNum: 0,
         completedOrders: [],
         bots: [],
+        botNum: 0,
         botCount: 0,
+        processingOrder: false, // flag to indicate whether an order is currently being processed
     });
 
     watchEffect(() => {
+        // check if an order is currently being processed
+        if (state.processingOrder) {
+            return;
+        }
+        
         const ordersToProcess = state.orders.filter((order) => order.botId === null);
         const availableBots = state.bots.filter((bot) => bot.status === "Idle");
 
         for (const order of ordersToProcess) {
             // Find an available bot that is not already assigned to a pending order
             const availableBot = availableBots.find(
-            (bot) =>
-                !state.orders.some(
-                (o) =>
-                    o.botId === bot.id &&
-                    o.status === "Pending" &&
-                    o.orderNumber !== order.orderNumber // ignore the current order
-                )
+                (bot) =>
+                    !state.orders.some(
+                        (o) =>
+                            o.botId === bot.id &&
+                            o.status === "Pending" &&
+                            o.orderNumber !== order.orderNumber // ignore the current order
+                    )
+            );
+            
+            if (!availableBot) {
+                continue; // no available bot found, move on to the next order
+            }
+
+            // If a bot was previously assigned to this order and is now idle, reassign it
+            const previouslyAssignedBot = state.bots.find(
+                (bot) => bot.id === order.botId && bot.status === "Idle"
             );
 
-            if (availableBot) {
-                // Assign the available bot to the order
-                order.botId = availableBot.id;
-                availableBot.status = "In Use";
-                processOrder(order.botId, order);
+            
+            if (previouslyAssignedBot) {
+                availableBot = previouslyAssignedBot;
             }
+
+            // Assign the available bot to the order
+            order.botId = availableBot.id;
+            availableBot.status = "In Use";
+            state.processingOrder = true; // set flag to indicate that an order is being processed
+            processOrder(order.botId, order);
+            break; // exit the loop after assigning a bot to an order
         }
     });
 
-    let orderCount = 0;
 
     const addOrder = (type) => {
-        orderCount++;
-        const orderNumber = orderCount;
+        state.orderNum++;
+        const orderNumber = state.orderNum;
         const order = { orderNumber, type, time: 10, botId: null, status: "Pending" };
         if (type === "VIP") {
-            state.orders.unshift(order); // insert VIP order at the beginning
+            const vipIndex = state.orders.findIndex((order) => order.type !== "VIP");
+            vipIndex >= 0 ? state.orders.splice(vipIndex, 0, order) : state.orders.unshift(order);
         } else {
             state.orders.push(order);
         }
@@ -48,34 +70,41 @@
         state.orders = state.orders.filter((order) => order.status === "Pending");
     };
 
-    let bots = 0
-
     const addBot = () => {
-        bots++;
-        const id = bots;
+        state.botNum++;
+        const id = state.botNum;
         const bot = { id, status: "Idle" };
         state.bots.push(bot);
         state.botCount++;
     };
 
     const removeBot = () => {
-        const availableBot = state.bots.find(bot => bot.status === "Idle");
+        const inUseBot = state.bots.find(bot => bot.status === "In Use");
+        const idleBot = state.bots.find(bot => bot.status === "Idle");
 
-        if (availableBot) {
+        if (inUseBot) {
             const botOrder = state.orders.find(
-                order => order.botId === availableBot.id && order.status === "Pending"
+                order => order.botId === inUseBot.id && order.status === "Pending"
             );
 
             if (botOrder) {
+                // If the bot was assigned to a pending order, reset the order's botId, time, and interval
+                clearInterval(botOrder.interval);
                 botOrder.botId = null;
                 botOrder.time = 10;
-                clearInterval(botOrder.interval);
+                state.processingOrder = false; // reset the flag to indicate that no order is being processed
             }
-
-            state.bots = state.bots.filter(bot => bot.id !== availableBot.id);
+            
+            // Remove the in-use bot from the list of active bots
+            state.bots = state.bots.filter(bot => bot.id !== inUseBot.id);
+            state.botCount--;
+        } else if (idleBot) {
+            // Remove the idle bot from the list of active bots
+            state.bots = state.bots.filter(bot => bot.id !== idleBot.id);
             state.botCount--;
         }
     };
+
 
     const processOrder = (botId, order) => {
         order.interval = setInterval(() => {
@@ -88,6 +117,7 @@
                 bot.status = "Idle";
                 state.completedOrders.push(order);
                 filterCompletedOrders();
+                state.processingOrder = false; // reset the flag to indicate that no order is being processed
             }
         }, 1000);
     };
