@@ -8,7 +8,7 @@
 
     watchEffect(() => {
         const ordersToProcess = state.orders.filter((order) => order.botId === null);
-        const availableBots = state.bots.filter((bot) => bot.status === "Available");
+        const availableBots = state.bots.filter((bot) => bot.status === "Idle");
 
         for (const order of ordersToProcess) {
             // Find an available bot that is not already assigned to a pending order
@@ -53,13 +53,13 @@
     const addBot = () => {
         bots++;
         const id = bots;
-        const bot = { id, status: "Available" };
+        const bot = { id, status: "Idle" };
         state.bots.push(bot);
         state.botCount++;
     };
 
     const removeBot = () => {
-        const availableBot = state.bots.find(bot => bot.status === "Available");
+        const availableBot = state.bots.find(bot => bot.status === "Idle");
 
         if (availableBot) {
             const botOrder = state.orders.find(
@@ -85,7 +85,7 @@
                 order.botId = null;
                 order.status = "Completed";
                 const bot = state.bots.find((bot) => bot.id === botId);
-                bot.status = "Available";
+                bot.status = "Idle";
                 state.completedOrders.push(order);
                 filterCompletedOrders();
             }
