@@ -92,7 +92,7 @@
     //     ordersToProcess.forEach(order => {
     //         const availableBot = idleBots.find(bot => {
     //         const assignedOrders = 
-    //             state.orders.filter(o => o.botId === bot.id && o.status === "Pending" &&  o.orderNumber !== order.orderNumber);
+    //             state.orders.filter(o => o.botId === bot.id && o.status === "Pending");
     //             return assignedOrders.length === 0;
     //         });
             
@@ -138,7 +138,7 @@
                         <li v-for="order in state.orders" 
                             :key="order.orderNumber">
                             Order No # {{ order.orderNumber }} ({{ order.type }})
-                            <span v-if="order.time !== 10">(Processing in {{ order.time }}s)</span>
+                            <span v-if="order.time < 10">(Processing in {{ order.time }}s)</span>
                         </li>
                     </ul>
                 </div>
