@@ -16,30 +16,41 @@
             type,
             time: 10,
             botId: null,
+            botType: null,
             status: "Pending",
         };
         if (type === "VIP") {
             let vipIndex = state.orders.findIndex((o) => o.type !== "VIP");
             if (vipIndex === -1) vipIndex = state.orders.length;
-            state.orders.splice(vipIndex, 0, order);
+            const orderVip = {
+                orderNumber: state.orderNum,
+                type,
+                time: 5,
+                botId: null,
+                botType: null,
+                status: "Pending",
+            };
+            state.orders.splice(vipIndex, 0, orderVip);
         } else {
             state.orders.push(order);
         }
     };
 
-    const addBot = () => {
+    const addBot = (type) => {
         state.botNum++;
         const bot = { 
             id: state.botNum, 
+            type,
             status: "Idle" 
         }
         state.bots.push(bot);
         state.botCount++;
     };
 
-    const removeBot = () => {
+    const removeBot = (type) => {
         const inUseBot = state.bots.find((bot) => bot.status === "In Use");
         const idleBot = state.bots.find((bot) => bot.status === "Idle");
+        
         if (inUseBot) {
             const botOrder = state.orders.find(
                 (order) => order.botId === inUseBot.id && order.status === "Pending"
@@ -48,6 +59,7 @@
                 clearInterval(botOrder.interval);
                 botOrder.botId = null;
                 botOrder.time = 10;
+                botOrder.botType = null;
                 state.processingOrder = false;
             }
             state.bots = state.bots.filter((bot) => bot.id !== inUseBot.id);
@@ -69,7 +81,8 @@
                         (o) =>
                             o.botId === bot.id &&
                             o.status === "Pending" &&
-                            o.orderNumber !== order.orderNumber
+                            o.orderNumber !== order.orderNumber,
+                            o.botType === bot.type,
                     )
             );
             if (!availableBot) continue; 
@@ -180,15 +193,15 @@
         <div class="button-group flex justify-center">
             <Button 
                 tag="button" 
-                text="+ Bots"
+                text="+ Bots V1"
                 class="mr-2"
-                @click="addBot()"
+                @click="addBot('V1')"
             />
             <Button 
                 tag="button" 
-                text="- Bots"
+                text="- Bots V1"
                 class="ml-2"
-                @click="removeBot()"
+                @click="removeBot('V1')"
                 :disabled="state.bots.length === 0"
             />
         </div>
