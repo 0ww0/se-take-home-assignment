@@ -53,8 +53,7 @@
             state.bots = state.bots.filter((bot) => bot.id !== inUseBot.id);
             state.botCount--;
         } else if (idleBot) {
-            const latestIdleBot = idleBots[idleBots.length - 1];
-            state.bots = state.bots.filter((bot) => bot.id !== latestIdleBot.id);
+            state.bots = state.bots.filter((bot) => bot.id !== idleBot.id);
             state.botCount--;
         }
     };
